@@ -40,7 +40,7 @@ namespace ProyectoWF
 
             lErrorUsu.Visible = false;
             lErrorCon.Visible = false;
-            SqlCommand command = new SqlCommand("select * from dbo.Empleados where Usuario=HASHBYTES('SHA2_512',@usuario)", Conexion.getConexion());
+            SqlCommand command = new SqlCommand("select * from dbo.Empleados where Usuario=HASHBYTES('SHA2_512',@usuario)  and EsUsuario=true", Conexion.getConexion());
             command.Parameters.Add("@usuario", SqlDbType.VarChar).Value = tbUsuario.Text;
             SqlDataAdapter adapter = new SqlDataAdapter(command);
             DataSet dataSet = new DataSet();
@@ -49,7 +49,7 @@ namespace ProyectoWF
            
             if (dataSet.Tables[0].Rows.Count == 1)
             {
-                command = new SqlCommand("select * from dbo.Empleados where Usuario=HASHBYTES('SHA2_512',@usuario) and Password=HASHBYTES('SHA2_512',@password)", Conexion.getConexion());
+                command = new SqlCommand("select * from dbo.Empleados where Usuario=HASHBYTES('SHA2_512',@usuario) and Password=HASHBYTES('SHA2_512',@password) and EsUsuario=true", Conexion.getConexion());
                 command.Parameters.Add("@usuario", SqlDbType.VarChar).Value = tbUsuario.Text;
                 command.Parameters.Add("@password", SqlDbType.VarChar).Value = tbContrasena.Text;
                 using (adapter = new SqlDataAdapter(command))
