@@ -276,6 +276,7 @@ namespace ProyectoWF
         /// <param name="e"></param>
         private void cb_SelectedIndexChanged(object sender, EventArgs e)
         {
+            Console.WriteLine(((ComboBox)sender).SelectedIndex);
             string comando = "select PrecioUnidad from dbo.Productos where ProductoID=" + idProductoSegunPosicion[((ComboBox)sender).SelectedIndex];
             using (SqlDataAdapter adapter = new SqlDataAdapter(comando, Conexion.getConexion()))
             {
@@ -285,6 +286,18 @@ namespace ProyectoWF
                 dgProductos.CurrentRow.Cells["precioUnidad"].Value = cuenta.Tables[0].Rows[0]["PrecioUnidad"].ToString();
                 dgProductos.CurrentRow.Cells["idProducto"].Value = idProductoSegunPosicion[((ComboBox)sender).SelectedIndex];
                 calculoCeldaPrecio();
+            }
+
+            for (int i = 0; i < dgProductos.Rows.Count; i++)
+            {
+                if (((ComboBox)sender).Text != null && (dgProductos.Rows[i].Cells["idProducto"].Value == dgProductos.CurrentRow.Cells["idProducto"].Value) && dgProductos.CurrentRow.Index != i)
+                {
+                    ((ComboBox)sender).SelectedIndexChanged -= new EventHandler(cb_SelectedIndexChanged);
+                    ((ComboBox)sender).Text = null;
+                    dgProductos.CurrentRow.Cells["precioUnidad"].Value = "";
+                    MessageBox.Show("!Error el producto ya está seleccionado en otra fila¡", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    ((ComboBox)sender).SelectedIndexChanged += new EventHandler(cb_SelectedIndexChanged);
+                }
             }
         }
 
@@ -391,7 +404,7 @@ namespace ProyectoWF
         }
 
         /// <summary>
-        /// Cuando se da click en el botón de alta se da de alta en la base de datos todos los datos de el pedido y todas las filas del data gridView, si se abre en modo edicion en vez de dar de alta se actualiarán los datos
+        /// Cuando se da click en el botón de alta se da de alta en la base de datos todos los datos de el pedido y todas las filas del data DataGridView, si se abre en modo edicion en vez de dar de alta se actualiarán los datos
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -402,40 +415,9 @@ namespace ProyectoWF
             {
                 if (modo == 0)
                 {
-                    actualizarPrecioAntesDeOperar();
-                    using (SqlCommand sqlCommand = new SqlCommand("insert into dbo.Pedidos(ClienteID,EmpleadoID,PedidoFecha,RequiredFecha,FechaEntregado,ShipVia,Freight,NombreEntrega,DireccionEntrega,CiudadEntrega,RegionEntrega,CodigoPostalEntrega,PaisEntrega) values(@idCliente,@idEmpleado,@join_date,@join_date2,@join_date3,@idAgencia," +
-                        "@precioFinal,@nombreCliente,@direccionCliente,@ciudadCliente,@regionCliente,@cpCliente,@paisCliente)", Conexion.getConexion()))
-                    {
-                        sqlCommand.Parameters.Add("@idCliente", SqlDbType.Int).Value = idClienteSegunPosicion[tbNombreCliente.SelectedIndex];
-                        sqlCommand.Parameters.Add("@idEmpleado", SqlDbType.Int).Value = primaryKey;
-                        sqlCommand.Parameters.Add("@idAgencia", SqlDbType.Int).Value = idCAgenciaSegunPosicion[cbViasEnvio.SelectedIndex];
-                        sqlCommand.Parameters.Add("@precioFinal", SqlDbType.Decimal).Value = precioFinal;
-                        sqlCommand.Parameters.Add("@nombreCliente", SqlDbType.VarChar).Value = tbNombreCliente.Text;
-                        sqlCommand.Parameters.Add("@direccionCliente", SqlDbType.VarChar).Value = tbDireccion.Text;
-                        sqlCommand.Parameters.Add("@ciudadCliente", SqlDbType.VarChar).Value = tbCiudad.Text;
-                        sqlCommand.Parameters.Add("@regionCliente", SqlDbType.VarChar).Value = tbRegion.Text;
-                        sqlCommand.Parameters.Add("@cpCliente", SqlDbType.VarChar).Value = tbCodigoPostal.Text;
-                        sqlCommand.Parameters.Add("@paisCliente", SqlDbType.VarChar).Value = tbPais.Text;
-                        sqlCommand.Parameters.Add("@join_date", SqlDbType.Date).Value = DateTime.Now;
-                        sqlCommand.Parameters.Add("@join_date2", SqlDbType.Date).Value = dtFechaRequerida.Value;
-                        sqlCommand.Parameters.Add("@join_date3", SqlDbType.Date).Value = dtFechaEntrega.Value;
-
-                        sqlCommand.ExecuteNonQuery();
-                    }
-                    for (int i = 0; i < dgProductos.RowCount; i++)
-                    {
-                        using (SqlCommand sqlCommand = new SqlCommand("insert into"))
-                        {
-                            sqlCommand.Parameters.Add("@idCliente", SqlDbType.Int).Value = dgProductos.Rows[i].Cells["idProducto"].Value; ;
-                            sqlCommand.Parameters.Add("@idEmpleado", SqlDbType.Int).Value = primaryKey;
-                            sqlCommand.Parameters.Add("@idAgencia", SqlDbType.Int).Value = idCAgenciaSegunPosicion[cbViasEnvio.SelectedIndex];
-                            sqlCommand.Parameters.Add("@precioFinal", SqlDbType.Decimal).Value = precioFinal;
-                            sqlCommand.Parameters.Add("@nombreCliente", SqlDbType.VarChar).Value = tbNombreCliente.Text;
-                        }
-                    }
-
+                    altaPedido();
                 }
-                else
+                else if (modo == 1)
                 {
                     actualizarPedido();
                 }
@@ -461,6 +443,75 @@ namespace ProyectoWF
         private void btCancelar_Click(object sender, EventArgs e)
         {
             this.Close();
+        }
+
+        /// <summary>
+        /// Este método inserta en la base de datos el pedido
+        /// </summary>
+        private void altaPedido()
+        {
+            int idPedido;
+            SqlTransaction transaction;
+            transaction = Conexion.getConexion().BeginTransaction("SampleTransaction");
+            try
+            {
+                actualizarPrecioAntesDeOperar();
+                using (SqlCommand sqlCommand = new SqlCommand("insert into dbo.Pedidos(ClienteID,EmpleadoID,PedidoFecha,RequiredFecha,FechaEntregado,ShipVia,Freight,NombreEntrega,DireccionEntrega,CiudadEntrega,RegionEntrega,CodigoPostalEntrega,PaisEntrega) values(@idCliente,@idEmpleado,@join_date,@join_date2,@join_date3,@idAgencia," +
+                    "@precioFinal,@nombreCliente,@direccionCliente,@ciudadCliente,@regionCliente,@cpCliente,@paisCliente); SELECT SCOPE_IDENTITY()", Conexion.getConexion()))
+                {
+                    sqlCommand.Transaction = transaction;
+                    sqlCommand.Parameters.Add("@idCliente", SqlDbType.Int).Value = idClienteSegunPosicion[tbNombreCliente.SelectedIndex];
+                    sqlCommand.Parameters.Add("@idEmpleado", SqlDbType.Int).Value = primaryKey;
+                    sqlCommand.Parameters.Add("@idAgencia", SqlDbType.Int).Value = idCAgenciaSegunPosicion[cbViasEnvio.SelectedIndex];
+                    sqlCommand.Parameters.Add("@precioFinal", SqlDbType.Decimal).Value = precioFinal;
+                    sqlCommand.Parameters.Add("@nombreCliente", SqlDbType.VarChar).Value = tbNombreCliente.Text;
+                    sqlCommand.Parameters.Add("@direccionCliente", SqlDbType.VarChar).Value = tbDireccion.Text;
+                    sqlCommand.Parameters.Add("@ciudadCliente", SqlDbType.VarChar).Value = tbCiudad.Text;
+                    sqlCommand.Parameters.Add("@regionCliente", SqlDbType.VarChar).Value = tbRegion.Text;
+                    sqlCommand.Parameters.Add("@cpCliente", SqlDbType.VarChar).Value = tbCodigoPostal.Text;
+                    sqlCommand.Parameters.Add("@paisCliente", SqlDbType.VarChar).Value = tbPais.Text;
+                    sqlCommand.Parameters.Add("@join_date", SqlDbType.Date).Value = DateTime.Now;
+                    sqlCommand.Parameters.Add("@join_date2", SqlDbType.Date).Value = dtFechaRequerida.Value;
+                    sqlCommand.Parameters.Add("@join_date3", SqlDbType.Date).Value = dtFechaEntrega.Value;
+
+                    idPedido = Convert.ToInt32(sqlCommand.ExecuteScalar());
+                }
+
+                for (int i = 0; i < dgProductos.Rows.Count; i++)
+                {
+                    Console.WriteLine(dgProductos.Rows[i].Cells["idProducto"].Value);
+                    if (dgProductos.Rows[i].Cells["idProducto"].Value != null)
+                    {
+                        using (SqlCommand sqlCommand = new SqlCommand("insert into dbo.PedidoDetalles(PedidoID,ProductoID,PrecioUnidad,Cantidad,Descuento ) values(@idPedido2,@idProducto,@precioUnidad,@cantidad,@descuento)", Conexion.getConexion()))
+                        {
+                            sqlCommand.Transaction = transaction;
+                            sqlCommand.Parameters.Add("@idPedido2", SqlDbType.Int).Value = idPedido;
+                            sqlCommand.Parameters.Add("@idProducto", SqlDbType.Int).Value = dgProductos.Rows[i].Cells["idProducto"].Value;
+                            sqlCommand.Parameters.Add("@precioUnidad", SqlDbType.Money).Value = dgProductos.Rows[i].Cells["precioUnidad"].Value;
+                            sqlCommand.Parameters.Add("@cantidad", SqlDbType.Int).Value = (dgProductos.Rows[i].Cells["cantidad"].Value == null ? 1 : dgProductos.Rows[i].Cells["cantidad"].Value);
+                            sqlCommand.Parameters.Add("@descuento", SqlDbType.Int).Value = (dgProductos.Rows[i].Cells["descuento"].Value == null ? 0 : dgProductos.Rows[i].Cells["descuento"].Value);
+
+                            sqlCommand.ExecuteNonQuery();
+                        }
+                    }
+                }
+
+                transaction.Commit();
+                MessageBox.Show("Pedido actualizado correctamente", "Actualización de pedido", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                this.Close();
+            }
+            catch (SqlException)
+            {
+                transaction.Rollback();
+                if (modo == 1)
+                {
+                    MessageBox.Show("Error al actualizar el pedido", "¡Error!", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                else if (modo == 0)
+                {
+                    MessageBox.Show("Error alta de pedido", "¡Error!", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
         }
 
         /// <summary>
@@ -512,7 +563,6 @@ namespace ProyectoWF
                 transaction.Commit();
                 MessageBox.Show("Pedido actualizado correctamente", "Actualización de pedido", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 this.Close();
-
             }
             catch (SqlException)
             {
@@ -526,12 +576,15 @@ namespace ProyectoWF
         /// </summary>
         private void actualizarPrecioAntesDeOperar()
         {
-            for (int i = 0; i < dgProductos.RowCount; i++)
+            for (int i = 0; i < dgProductos.Rows.Count; i++)
             {
-                double descuento = ((Convert.ToDouble(dgProductos.Rows[i].Cells["descuento"].Value) > 0 || dgProductos.Rows[i].Cells["descuento"].Value != null) ? Convert.ToDouble(dgProductos.Rows[i].Cells["cantidad"].Value) * (Convert.ToDouble(dgProductos.Rows[i].Cells["descuento"].Value) / 100) : 0);
-                double precioConDescuentoAplicado = (Convert.ToDouble(dgProductos.Rows[i].Cells["cantidad"].Value) - descuento) * Convert.ToDouble(dgProductos.Rows[i].Cells["precioUnidad"].Value);
-                dgProductos.Rows[i].Cells["precio"].Value = precioConDescuentoAplicado;
-                calcularPrecioFinal();
+                if (((DataGridViewComboBoxCell)dgProductos.Rows[i].Cells["nombreProd"]).Value != null)
+                {
+                    double descuento = ((Convert.ToDouble(dgProductos.Rows[i].Cells["descuento"].Value) > 0 || dgProductos.Rows[i].Cells["descuento"].Value != null) ? Convert.ToDouble((dgProductos.Rows[i].Cells["cantidad"] == null ? 1 : dgProductos.Rows[i].Cells["cantidad"].Value)) * (Convert.ToDouble(dgProductos.Rows[i].Cells["descuento"].Value) / 100) : 0);
+                    double precioConDescuentoAplicado = (Convert.ToDouble((dgProductos.Rows[i].Cells["cantidad"].Value == null ? 1 : dgProductos.Rows[i].Cells["cantidad"].Value)) - descuento) * Convert.ToDouble(dgProductos.Rows[i].Cells["precioUnidad"].Value);
+                    dgProductos.Rows[i].Cells["precio"].Value = precioConDescuentoAplicado;
+                    calcularPrecioFinal();
+                }
             }
         }
     }

@@ -245,7 +245,7 @@ namespace ProyectoWF
 
         private void abrirPedidos()
         {
-            FormularioPedidos formPedidos = new FormularioPedidos(1, 1);
+            FormularioPedidos formPedidos = new FormularioPedidos(0, 2);
             formPedidos.MdiParent = this;
             formPedidos.Show();
         }
